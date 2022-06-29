@@ -9,3 +9,5 @@ build
 *.meta.js
 /local.properties
 /publishingCredentials.properties
+.storage
+.httpCache
