@@ -120,6 +120,7 @@ class ComplexExp2(parentScope: KslScopeBuilder) :
 }
 
 // Raises `c` to a floating point power `e`.
+// TBD to complex power
 fun KslScopeBuilder.complexPow(c: KslExprFloat2, e: KslExprFloat1): KslExprFloat2 =
     KslInvokeFunctionVector(
         parentStage.getOrCreateFunction(ComplexPow.FUNC_NAME) { ComplexPow(this) },
