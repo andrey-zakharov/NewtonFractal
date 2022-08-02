@@ -1,6 +1,7 @@
 import de.fabmax.kool.InputManager
 import de.fabmax.kool.KoolContext
 import de.fabmax.kool.math.*
+import de.fabmax.kool.pipeline.RenderPass
 import de.fabmax.kool.scene.Group
 import de.fabmax.kool.scene.Scene
 
@@ -24,15 +25,24 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
         }
 
     private val mouseTransform = Mat4d()
+    private val mouseDrag = MutableVec2d()
     val reset: () -> Unit
 
-    override fun handleDrag(dragPtrs: List<InputManager.Pointer>, scene: Scene, ctx: KoolContext) {
+    var debug: String? = null
 
+    override fun handleDrag(dragPtrs: List<InputManager.Pointer>, scene: Scene, ctx: KoolContext) {
+        //simple
+        debug = dragPtrs.joinToString("\n") { "x=${it.x} y=${it.y} ${it.deltaX} ${it.deltaY} dragDelta=${it.dragDeltaX} ${it.dragDeltaY}" }
+        // raycast to xy
+        // move by dragDelta
+        mouseDrag += dragPtrs.fold(MutableVec2d(.0, .0)) { v, ptr -> v.add(Vec2d(-ptr.deltaX, ptr.deltaY)) }
+        // totalDragDelta /
     }
 
     init {
         scene.registerDragHandler(this)
         onUpdate += {
+            updateDrags(it.renderPass)
             updateTransform()
         }
         scene.onProcessInput += {
@@ -55,6 +65,14 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
             zoom = initialZoom
             translation.set(initialTranslation.toVec2d())
         }
+    }
+
+    private fun updateDrags(rp: RenderPass) {
+        if ( rp.viewport.width == 0 || rp.viewport.height == 0 ) return
+        translation.x += zoom * ( mouseDrag.x / rp.viewport.width )
+        translation.y += zoom * ( mouseDrag.y / rp.viewport.height )
+        mouseDrag.x = .0
+        mouseDrag.y = .0
     }
 
     private fun updateTransform() {

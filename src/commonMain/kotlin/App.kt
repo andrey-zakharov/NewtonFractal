@@ -97,6 +97,17 @@ class App(val ctx: KoolContext): Scene.DragHandler {
                     }
                 }
             }
+            +label("drags") {
+                layoutSpec.setOrigin(zero(), dps(100f), zero())
+                layoutSpec.setSize(full(), dps(100f), full() )
+                onUpdate += { ev ->
+                    with(ctx.scenes[0]) {
+                        (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
+                            debug?.run { text = this }
+                        }
+                    }
+                }
+            }
 
         }
         ctx.run()
