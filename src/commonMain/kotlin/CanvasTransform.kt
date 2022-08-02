@@ -40,13 +40,13 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
 
         }
 
-        inputMan.registerKeyListener(InputManager.KEY_CURSOR_LEFT, "left") { translation.add(Vec2d(-panStep, 0.0)) }
-        inputMan.registerKeyListener(InputManager.KEY_CURSOR_RIGHT, "right") { translation.add(Vec2d(panStep, 0.0)) }
-        inputMan.registerKeyListener(InputManager.KEY_CURSOR_UP, "up") { translation.add(Vec2d(0.0, panStep)) }
-        inputMan.registerKeyListener(InputManager.KEY_CURSOR_DOWN, "down") { translation.add(Vec2d(0.0, -panStep)) }
+        inputMan.registerKeyListener(InputManager.KEY_CURSOR_LEFT, "left", { it.isPressed }) { translation.add(Vec2d(-panStep * zoom, 0.0)) }
+        inputMan.registerKeyListener(InputManager.KEY_CURSOR_RIGHT, "right", { it.isPressed }) { translation.add(Vec2d(panStep * zoom, 0.0)) }
+        inputMan.registerKeyListener(InputManager.KEY_CURSOR_UP, "up", { it.isPressed }) { translation.add(Vec2d(0.0, panStep * zoom)) }
+        inputMan.registerKeyListener(InputManager.KEY_CURSOR_DOWN, "down", { it.isPressed }) { translation.add(Vec2d(0.0, -panStep * zoom)) }
 
-        inputMan.registerKeyListener(InputManager.KEY_NP_PLUS, "zoom in") { zoom *= 1.1 }
-        inputMan.registerKeyListener(InputManager.KEY_NP_MINUS, "zoom out") { zoom /= 1.1 }
+        inputMan.registerKeyListener(InputManager.KEY_NP_PLUS, "zoom in", { it.isPressed }) { zoom *= 1.1 }
+        inputMan.registerKeyListener(InputManager.KEY_NP_MINUS, "zoom out", { it.isPressed }) { zoom /= 1.1 }
 
 
         val initialZoom = zoom

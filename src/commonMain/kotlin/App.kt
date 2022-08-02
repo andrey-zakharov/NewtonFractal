@@ -1,15 +1,24 @@
 import de.fabmax.kool.InputManager
 import de.fabmax.kool.KoolContext
-import de.fabmax.kool.math.*
+import de.fabmax.kool.math.Mat3f
+import de.fabmax.kool.math.RayTest
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.pipeline.Attribute
 import de.fabmax.kool.pipeline.Shader
 import de.fabmax.kool.scene.*
-import de.fabmax.kool.scene.ui.dps
-import de.fabmax.kool.scene.ui.full
-import de.fabmax.kool.scene.ui.uiScene
-import de.fabmax.kool.scene.ui.zero
+import de.fabmax.kool.scene.ui.*
+import de.fabmax.kool.toString
+import kotlin.math.ceil
+import kotlin.math.log10
+import kotlin.math.pow
 
-
+fun Mat3f.translate(o: Vec2f) = translate(o.x, o.y)
+fun Mat3f.translate(x: Float, y: Float): Mat3f {
+    this[0, 2] = x
+    this[1, 2] = y
+    //this[2, 2] = 1f //
+    return this
+}
 
 class App(val ctx: KoolContext): Scene.DragHandler {
 
@@ -26,8 +35,10 @@ class App(val ctx: KoolContext): Scene.DragHandler {
             val inputTransform = canvasTransform(ctx.inputMgr, "canvasTransform") {
                 //leftDragMethod = OrbitInputTransform.DragMethod.PAN
                 panStep = 0.1
+                // float precise
+                minZoom = 10.0.pow(-1.5)
+                maxZoom = 10.0.pow(7.5)
                 +camera
-
             }
 
             +inputTransform
@@ -35,35 +46,24 @@ class App(val ctx: KoolContext): Scene.DragHandler {
 
 
             }).apply {
-                (this.shader as? NewtonFractalShader)?.run {
+                onUpdate += {ev ->
+                    val z = inputTransform.zoom.toFloat()
+                    val displayMove = Mat3f().apply { translate(-0.5f,-0.5f) }
 
-                }
-                onUpdate += {
-                    (this.shader as? NewtonFractalShader)?.uInvertedMvp?.run {
-                        // translate from 0..1 uv coords to -0.5 .. 0.5 coords + ratio
-                        this.setIdentity().setColVec(2,
-                            Vec3f(-0.5f * it.viewport.aspectRatio, -0.5f, -0f)
-                        //    Vec3f(inputTransform.translation.x.toFloat(), inputTransform.translation.y.toFloat(), 0f)
-                        ) // translate
-                        this.scale(Vec3f(it.viewport.aspectRatio, 1f, 1f))
+                    val matUv2xy = Mat3f().apply {
+                        translate(inputTransform.translation.x.toFloat(), inputTransform.translation.y.toFloat())
+                        scale(ev.viewport.aspectRatio * z, z, 1f)
+                        mul(displayMove)
+                    }
 
-                        val tmpMat = Mat3f()
-                        tmpMat
-                            .setIdentity()
-                            .setColVec(2,
-                                Vec3f(inputTransform.translation.x.toFloat(), inputTransform.translation.y.toFloat(), 0f)
-                            ) // translate
-                        tmpMat.scale(Vec3f(inputTransform.zoom.toFloat()))
-                        println("before. this:")
-                        this.dump()
-                        println("before. tmpMat:")
-                        tmpMat.dump()
-
-                        this.set(tmpMat.mul(this))
-                        //this.set(tmpMat)
-                        this.invert()
-                        println("after. this:")
-                        this.dump()
+                    (this.shader as? NewtonFractalShader)?.run {
+                        uv2xy.run {
+                            //uv2xy.mul(displayMove, this)
+                            set(matUv2xy)
+                        }
+                        scale = Vec2f(z, z)
+                        viewport = Vec2f(ev.viewport.width.toFloat(), ev.viewport.height.toFloat())
+                        gridScale = z / 10f.pow(ceil(log10(z)))
 
                     }
                 }
@@ -71,25 +71,33 @@ class App(val ctx: KoolContext): Scene.DragHandler {
         }
 
         ctx.scenes += uiScene {scene ->
+            +drawerMenu("hello") {
+                +button("inputTransform.reset") {
+                    layoutSpec.setOrigin(pcs(35f), dps(-50f), zero())
+                    layoutSpec.setSize(full(), dps(50f), full() )
+                    onClick += { pointer: InputManager.Pointer, rayTest: RayTest, koolContext: KoolContext ->
 
-            +label("cam") {
-                layoutSpec.setOrigin(zero(), zero(), zero())
-                layoutSpec.setSize(full(), dps(50f), full() )
-                onUpdate += {
-                    text = ctx.scenes[0].camera.globalPos.toString()
-                }
-            }
-            +button("inputTransform.reset") {
-                layoutSpec.setOrigin(zero(), dps(50f), zero())
-                layoutSpec.setSize(full(), dps(50f), full() )
-                onClick += { pointer: InputManager.Pointer, rayTest: RayTest, koolContext: KoolContext ->
-
-                    //// HACK
-                    (koolContext.scenes.first().children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
-                        reset()
+                        //// HACK
+                        (koolContext.scenes.first().children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
+                            reset()
+                        }
                     }
                 }
             }
+
+            +label("cam") {
+                layoutSpec.setOrigin(zero(), zero(), zero())
+                layoutSpec.setSize(full(), dps(100f), full() )
+                onUpdate += { ev ->
+                    with(ctx.scenes[0]) {
+                        text = "pos: ${camera.globalPos}"
+                        (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
+                            text += "\nscale: $zoom (10^${log10(zoom).toString(4)})"
+                        }
+                    }
+                }
+            }
+
         }
         ctx.run()
     }
