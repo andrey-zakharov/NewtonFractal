@@ -4,7 +4,7 @@ plugins {
     kotlin("multiplatform")
 }
 
-group = "org.example"
+group = "me.az"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -16,6 +16,7 @@ val koolVersion: String by project
 
 kotlin {
 
+//    android()
     js(IR) {
         browser {
             binaries.executable()

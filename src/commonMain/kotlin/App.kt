@@ -3,9 +3,9 @@ import de.fabmax.kool.KoolContext
 import de.fabmax.kool.math.Mat3f
 import de.fabmax.kool.math.RayTest
 import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.pipeline.Attribute
-import de.fabmax.kool.pipeline.Shader
-import de.fabmax.kool.scene.*
+import de.fabmax.kool.scene.Camera
+import de.fabmax.kool.scene.OrthographicCamera
+import de.fabmax.kool.scene.scene
 import de.fabmax.kool.scene.ui.*
 import de.fabmax.kool.toString
 import kotlin.math.ceil
@@ -20,7 +20,7 @@ fun Mat3f.translate(x: Float, y: Float): Mat3f {
     return this
 }
 
-class App(val ctx: KoolContext): Scene.DragHandler {
+class App(val ctx: KoolContext) {
 
     init {
         ctx.scenes += scene {
@@ -76,10 +76,10 @@ class App(val ctx: KoolContext): Scene.DragHandler {
                     layoutSpec.setOrigin(pcs(35f), dps(-50f), zero())
                     layoutSpec.setSize(full(), dps(50f), full() )
                     onClick += { pointer: InputManager.Pointer, rayTest: RayTest, koolContext: KoolContext ->
-
                         //// HACK
                         (koolContext.scenes.first().children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
                             reset()
+                            pointer.consume()
                         }
                     }
                 }
@@ -103,7 +103,8 @@ class App(val ctx: KoolContext): Scene.DragHandler {
                 onUpdate += { ev ->
                     with(ctx.scenes[0]) {
                         (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
-                            debug?.run { text = this }
+                            debug?.run { if ( this.isNotEmpty() ) text = this }
+                            debug = ""
                         }
                     }
                 }
@@ -111,27 +112,33 @@ class App(val ctx: KoolContext): Scene.DragHandler {
 
         }
         ctx.run()
+
+        tests()
     }
 
-    override fun handleDrag(dragPtrs: List<InputManager.Pointer>, scene: Scene, ctx: KoolContext) {
-        println(dragPtrs)
+    fun tests() {
+        val a = CircularFifoQueue<Int>(3)
+        // expect exception NoSuchElementException
+        //expectException { a.first() }
+        //expectException { a.last() }
+        a.addLast(1)
+        expect( a.first() == 1 )
+        expect( a.last() == 1 )
+        a.addLast(2)
+        expect( a.first() == 1 )
+        expect( a.last() == 2 )
+        a.addLast(3)
+        a.addLast(4)
+        expect( a.first() == 2 ) { "was ${a.first()} expect 2"}
+        expect( a.last() == 4 )
+        a.addLast(5)
+        expect( a.first() == 3 ) { "was ${a.first()} expect 2"}
+        expect( a.last() == 5 )
+    }
+
+    private fun expect(cond: Boolean, msg: () -> String = { "assert error" }) {
+        if ( !cond ) throw AssertionError(msg())
     }
 
 //    private val tmpMat = Mat3f()
-}
-
-private fun Group.fullScreenQuad(quadShader: Shader): Mesh {
-
-    return mesh(listOf(Attribute.POSITIONS, Attribute.TEXTURE_COORDS, Attribute.COLORS, Attribute.NORMALS), "canvas") {
-
-        isFrustumChecked = false
-        generate {
-            rect {
-                size.set(2f, 2f)
-                translate(-1f, -1f, 0f)
-                mirrorTexCoordsY()
-            }
-        }
-        shader = quadShader
-    }
 }
