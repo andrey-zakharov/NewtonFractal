@@ -19,9 +19,9 @@ fun Mat3f.translate(x: Float, y: Float): Mat3f {
     //this[2, 2] = 1f //
     return this
 }
+val displayMove = Mat3f().apply { translate(-0.5f,-0.5f) }
 
 class App(val ctx: KoolContext) {
-
     init {
         ctx.scenes += scene {
 
@@ -47,8 +47,7 @@ class App(val ctx: KoolContext) {
 
             }).apply {
                 onUpdate += {ev ->
-                    val z = inputTransform.zoom.toFloat()
-                    val displayMove = Mat3f().apply { translate(-0.5f,-0.5f) }
+                    val z = inputTransform.scale.toFloat()
 
                     val matUv2xy = Mat3f().apply {
                         translate(inputTransform.translation.x.toFloat(), inputTransform.translation.y.toFloat())
@@ -63,7 +62,7 @@ class App(val ctx: KoolContext) {
                         }
                         scale = Vec2f(z, z)
                         viewport = Vec2f(ev.viewport.width.toFloat(), ev.viewport.height.toFloat())
-                        gridScale = z / 10f.pow(ceil(log10(z)))
+                        gridScale = 10f.pow(ceil(log10(z))) / z
 
                     }
                 }
@@ -92,7 +91,7 @@ class App(val ctx: KoolContext) {
                     with(ctx.scenes[0]) {
                         text = "pos: ${camera.globalPos}"
                         (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
-                            text += "\nscale: $zoom (10^${log10(zoom).toString(4)})"
+                            text += "\nscale: $scale (10^${log10(scale).toString(4)})"
                         }
                     }
                 }
