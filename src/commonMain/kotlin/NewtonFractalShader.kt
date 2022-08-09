@@ -114,7 +114,7 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                     val uv = texCoordBlock.getAttributeCoords(Attribute.TEXTURE_COORDS)
                     val xyz = float3Var(uv2xy * float3Value(uv.x, uv.y, 1f.const))
                     val xy = xyz.float2("xy")
-                    var z = float2Var(xyz.float2("xy"))
+                    var z = float2Var(xy)
                     val res = floatArray(cfg.roots.size, 0f.const)
                     val steps = intVar(0.const)
                     val rootReached = boolVar(false.const)
@@ -154,36 +154,39 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                     )
 
                     //grid https://github.com/ogxd/grid-shader-unity/blob/master/Assets/Plugins/GridShader/Grid%20Shader.shader
-                    val gridThickness = floatVar(2f.const / viewport.x)
+                    val gridThickness = float2Var(2f.const / viewport)
+                    gridThickness.x set gridThickness.x * (viewport.x / viewport.y)
                     val gridScale = uniformFloat1(UNIFORM_GRIDSCALE)
-                    val fadeSpeed = .5f.const // Range(0.1, 4)) = 0.5
+                    val fadeSpeed = 2f.const // Range(0.1, 4)) = 0.5
                     val localScale = floatVar(1f.const / gridScale)
 
                     val uvAnalog = float2Var(xy / scale)
 
-                    val gridPos = int2Var( int2Value(
-                        floor(fract((uvAnalog.x - 0.5f.const * gridThickness) * localScale) + gridThickness * localScale).toInt1(),
-                        floor(fract((uvAnalog.y - 0.5f.const * gridThickness) * localScale) + gridThickness * localScale).toInt1()
-                    ) )
+                    val gridPos = int2Var(
+                        floor(fract((uvAnalog - 0.5f.const * gridThickness) * localScale) + gridThickness * localScale).toInt2(),
+                    )
 
-                    val fade = floatVar(pow(1f.const - map(gridScale, 0.1f.const, 1f.const, 0.00001f.const, 0.99999f.const), fadeSpeed))
+                    val fade = floatVar(pow(1f.const - map(localScale, 0.1f.const, 1f.const, 0.00001f.const, 0.99999f.const), fadeSpeed))
 
                     `if`( gridPos.x eq 1.const or (gridPos.y eq 1.const)
                     ) {
-                        color.a set max((1f.const - fade), fade)
+                        val mixValue = max((1f.const - fade), fade)
+                        val mixColor = Color.BLACK
+                        color.x set mix(color.x, mixColor.x.const, mixValue)
+                        color.y set mix(color.y, mixColor.y.const, mixValue)
+                        color.z set mix(color.z, mixColor.z.const, mixValue)
+
                     }.`else` {
                         val tensScale = 10f.const * localScale
-                        gridPos.x set floor(fract((uvAnalog.x - 0.5f.const * gridThickness) * tensScale) + gridThickness * tensScale).toInt1()
-                        gridPos.y set floor(fract((uvAnalog.y - 0.5f.const * gridThickness) * tensScale) + gridThickness * tensScale).toInt1()
+                        gridPos set floor(fract((uvAnalog - 0.5f.const * gridThickness) * tensScale) + gridThickness * tensScale).toInt2()
 
                         `if`( gridPos.x eq 1.const or (gridPos.y eq 1.const) ) {
                             // NO MIX FOR vec3?
-                            val mixValue = 0.5f.const
+                            val mixValue = fade // (1f.const - fade)
                             val mixColor = Color.BLACK
                             color.x set mix(color.x, mixColor.x.const, mixValue)
                             color.y set mix(color.y, mixColor.y.const, mixValue)
                             color.z set mix(color.z, mixColor.z.const, mixValue)
-                            color.a set (1f.const - fade)
                         }
                     }
 
@@ -233,8 +236,8 @@ class SlMap(parentScope: KslScopeBuilder):
     init {
         val v = paramFloat1("value")
         val min1 = paramFloat1("min1")
-        val min2 = paramFloat1("min2")
         val max1 = paramFloat1("max1")
+        val min2 = paramFloat1("min2")
         val max2 = paramFloat1("max2")
         body.apply {
             `return`(min2 + (v - min1) * ( max2 - min2) / (max1 - min1))
