@@ -24,7 +24,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        repository: 'https://github.com/fabmax/kool.git'
+        repository: 'fabmax/kool'
         path: 'kool'
 
     - uses: actions/checkout@v3
