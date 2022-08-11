@@ -107,9 +107,6 @@ class App(val ctx: KoolContext) {
                     }
                 }
             }
-
-
-
         }
         ctx.run()
 

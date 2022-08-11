@@ -22,7 +22,7 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
     var maxZoom = 100.0
 
     var panStep = 1.0
-    var scaleStep = 15.0 // in percent?
+    var scaleStep = 50.0 // in percent?
     val translation = MutableVec2d()
 
     var scale
@@ -34,6 +34,7 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
     private val scaleAnimator = SpringDamperDouble(1.0)
 
     var debug: String? = null
+    var debugPivot: Vec2d? = null
 
     private val mouseTransform = Mat4d()
     private val mouseDrag = MutableVec2d()
@@ -69,6 +70,14 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
     fun KoolContext.anyBtn(pointers: List<InputManager.Pointer> = this.inputMgr.pointerState.pointers.toList() ) =
         pointers.any { it.buttonMask > 0 }
 
+    private fun calcDragPoints(screenPos: Vec2d, delta: Vec2d): Pair<Vec2d, Vec2d> {
+        //val pos = unprojectToCanvas(viewportCache, screenPos)
+        val oldpos = MutableVec2d(screenPos)
+        oldpos.subtract(delta, oldpos)
+        //oldpos.set(unprojectToCanvas(viewportCache, oldpos))
+        return Pair(oldpos, screenPos)
+    }
+
     override fun handleDrag(dragPtrs: List<InputManager.Pointer>, scene: Scene, ctx: KoolContext) {
 
         if (dragPtrs.none { !it.isConsumed() }) return
@@ -81,6 +90,31 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
             }
             return
         }
+        if ( dragPtrs.size > 1 || (debugPivot != null && dragPtrs.isNotEmpty())) {
+            val points = dragPtrs.map { pointer ->
+                val screenPos = Vec2d(pointer.x, pointer.y)
+                val delta = Vec2d(pointer.deltaX, pointer.deltaY)
+                calcDragPoints(screenPos, delta)
+            }.toMutableList()
+
+            debugPivot?.run {
+                points.add(calcDragPoints(this, Vec2d.ZERO))
+            }
+
+            // was
+            val v0 = MutableVec2d(points[0].first).also { it.minusAssign(points[1].first) }.length()
+            // comes
+            val v1 = MutableVec2d(points[0].second).also { it.minusAssign(points[1].second) }.length()
+
+            val newScale = scale * v0 / v1
+            val delta = scaleToDelta(newScale)
+            with(dragPtrs.first()) {
+                handleScaling(Vec2d(x, y), delta)
+                consume()
+            }
+            return
+        }
+
         val anyBtn = ctx.anyBtn(dragPtrs)
 
         // raycast to xy
@@ -120,8 +154,6 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
             //debug = "${x.actual} -> ${x.desired}, ${y.actual} -> ${y.desired}"
         }
         scene.onProcessInput += {
-
-
             debug = it.inputMgr.pointerState.pointers.filter { it.isValid && !it.isConsumed() }.joinToString("\n") {
                 val xy = unprojectToCanvas(viewportCache, Vec2d(it.x, it.y))
                 "pointer #${it.id} @${xy.toString(3)}"
@@ -152,7 +184,16 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
                 handleScaling ( Vec2d(x, y), +1.0 )
             }
         }
-
+        // set pivot for debug zoom by two pointers
+        inputMan.registerKeyListener(InputManager.KEY_INSERT, "set pivot 1", { it.isPressed }) {
+            with(inputMan.pointerState.primaryPointer) {
+                debugPivot = Vec2d(x, y)//unprojectToCanvas(viewportCache, Vec2d(x, y))
+                println("debug pivot = ${debugPivot?.toString(3)}")
+            }
+        }
+        inputMan.registerKeyListener(InputManager.KEY_DEL, "pivot reset", { it.isPressed }) {
+            debugPivot = null
+        }
 
         val initialZoom = scale
         val initialTranslation = Vec2d(translation)
@@ -196,10 +237,15 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
     }
 
 
+    private fun deltaToScale(deltaScroll: Double) =
+        scale + scale * deltaScroll * (scaleStep / 100.0)
+    private fun scaleToDelta(targetScale: Double) =
+        100.0 * ( targetScale / scale - 1) / scaleStep
+
     /// pivot in screen coords
     private fun handleScaling(pivot: Vec2d, deltaScroll: Double) {
 
-        val newScale = scale + scale * deltaScroll * (scaleStep / 100.0)
+        val newScale = deltaToScale(deltaScroll)
         val oldXy = unprojectToCanvas(viewportCache, pivot)
         val newXy = unprojectToCanvas(viewportCache, pivot, newScale)
 

@@ -164,7 +164,7 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                     val gridThickness = float2Var(2f.const / viewport)
                     gridThickness.x set gridThickness.x * (viewport.x / viewport.y)
                     val gridScale = uniformFloat1(UNIFORM_GRIDSCALE)
-                    val fadeSpeed = 2f.const // Range(0.1, 4)) = 0.5
+                    val fadeSpeed = 0.5f.const // Range(0.1, 4)) = 0.5
                     val localScale = floatVar(1f.const / gridScale)
 
                     val uvAnalog = float2Var(xy / scale)
@@ -172,7 +172,7 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                     val gridPos = int2Var(
                         floor(fract((uvAnalog - 0.5f.const * gridThickness) * localScale) + gridThickness * localScale).toInt2(),
                     )
-                    val gridColor = Color.GRAY
+                    val gridColor = Color.DARK_GRAY
 
                     val fade = floatVar(pow(1f.const - map(localScale, 0.1f.const, 1f.const, 0.00001f.const, 0.99999f.const), fadeSpeed))
 
