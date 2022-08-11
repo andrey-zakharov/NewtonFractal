@@ -32,7 +32,7 @@ jobs:
       with:
         java-version: '11'
         distribution: 'temurin'
-    - run: pwd; ls -laR
+    - run: chmod +x kool/gradlew
     - name: Build Kool
       uses: gradle/gradle-build-action@v2
       with:
