@@ -63,16 +63,16 @@ class App(val ctx: KoolContext) {
                         scale = Vec2f(z, z)
                         viewport = Vec2f(ev.viewport.width.toFloat(), ev.viewport.height.toFloat())
                         gridScale = 10f.pow(ceil(log10(z))) / z
-
                     }
                 }
             }
         }
 
         ctx.scenes += uiScene {scene ->
-            +drawerMenu("hello") {
+            +drawerMenu("hello", width= dps(400f)) {
+                val pad = pcs(35f)
                 +button("inputTransform.reset") {
-                    layoutSpec.setOrigin(pcs(35f), dps(-50f), zero())
+                    layoutSpec.setOrigin(pad, dps(-50f), zero())
                     layoutSpec.setSize(full(), dps(50f), full() )
                     onClick += { pointer: InputManager.Pointer, rayTest: RayTest, koolContext: KoolContext ->
                         //// HACK
@@ -82,32 +82,33 @@ class App(val ctx: KoolContext) {
                         }
                     }
                 }
+                +label("cam") {
+                    layoutSpec.setOrigin(pad, dps(-100f), zero())
+                    layoutSpec.setSize(full(), dps(100f), full() )
+                    onUpdate += { ev ->
+                        with(ctx.scenes[0]) {
+                            text = "pos: ${camera.globalPos.toString(3)}"
+                            (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
+                                text += "\nscale: ${scale.toString(3)} 10^${log10(scale).toString(4)})"
+                            }
+                        }
+                    }
+                }
+                +label("drags") {
+                    layoutSpec.setOrigin(pad, dps(-200f), zero())
+                    layoutSpec.setSize(full(), dps(100f), full() )
+                    onUpdate += { ev ->
+                        with(ctx.scenes[0]) {
+                            (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
+                                debug?.run { if ( this.isNotEmpty() ) text = this }
+                                debug = ""
+                            }
+                        }
+                    }
+                }
             }
 
-            +label("cam") {
-                layoutSpec.setOrigin(zero(), zero(), zero())
-                layoutSpec.setSize(full(), dps(100f), full() )
-                onUpdate += { ev ->
-                    with(ctx.scenes[0]) {
-                        text = "pos: ${camera.globalPos}"
-                        (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
-                            text += "\nscale: $scale (10^${log10(scale).toString(4)})"
-                        }
-                    }
-                }
-            }
-            +label("drags") {
-                layoutSpec.setOrigin(zero(), dps(100f), zero())
-                layoutSpec.setSize(full(), dps(100f), full() )
-                onUpdate += { ev ->
-                    with(ctx.scenes[0]) {
-                        (children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
-                            debug?.run { if ( this.isNotEmpty() ) text = this }
-                            debug = ""
-                        }
-                    }
-                }
-            }
+
 
         }
         ctx.run()

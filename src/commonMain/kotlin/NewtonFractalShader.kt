@@ -19,9 +19,10 @@ fun newtonFractalShader(cfgBlock: NewtonFractalShader.Config.() -> Unit): Newton
 class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg)) : KslShader(model, PipelineConfig()) {
     var a by uniform2f("a", Vec2f(1f, 0f) ) // a complex number coefficient in general Newton's iteration
     var d by uniform1f("uD", 3f)
-    val roots by uniform4fv("roots", arraySize = 3)
-    val uv2xy by uniformMat3f(NewtonFractal.UNIFORM_MVP)
+    val roots by uniform4fv(NewtonFractal.UNIFORM_ROOTS, arraySize = 3)
+    val colors by uniform3fv(NewtonFractal.UNIFORM_COLORS, arraySize = roots.size)
 
+    val uv2xy by uniformMat3f(NewtonFractal.UNIFORM_MVP)
     var scale by uniform2f(NewtonFractal.UNIFORM_SCALE)
     var viewport by uniform2f(NewtonFractal.UNIFORM_VIEWPORT)
     var gridScale by uniform1f(NewtonFractal.UNIFORM_GRIDSCALE)
@@ -31,11 +32,13 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
         super.onPipelineSetup(builder, mesh, ctx)
         for (i in 0 until cfg.roots.size) {
             roots[i].set(Vec4f(cfg.roots[i].x, cfg.roots[i].y, 0f, 0f))
+            colors[i].set(cfg.colors[i].r, cfg.colors[i].g, cfg.colors[i].b)
         }
 
         // newton iterations vars
         a = Vec2f(1f, 0f)
         d = 3f
+
     }
 
     //var maxItem by uniform1i("maxIter")
@@ -45,7 +48,8 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
             Vec2f(-.5f, sqrt(3f)/2f),
             Vec2f(-.5f, -sqrt(3f)/2f),
         )
-        val colors = listOf(Color.RED, Color.GREEN, Color.BLUE)
+//        val colors = listOf(Color.RED, Color.GREEN, Color.BLUE)
+        val colors = listOf(Color.fromHex("AF3F42"), Color.fromHex("276C69"), Color.fromHex("83A63B"))
         val maxIter = 100
         var tolerance = 0.00001f
         val a = Vec2f(1f, 0f)
@@ -58,6 +62,8 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
             const val UNIFORM_SCALE = "scale"
             const val UNIFORM_GRIDSCALE = "gridScale"
             const val UNIFORM_MVP = "uMvp"
+            const val UNIFORM_COLORS = "uColors"
+            const val UNIFORM_ROOTS = "roots"
 
         }
         init {
@@ -77,7 +83,8 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
             }
             fragmentStage {
 
-                val roots = uniformFloat4Array("roots", 3)
+                val roots = uniformFloat4Array(UNIFORM_ROOTS, 3)
+                val colors = uniformFloat3Array(UNIFORM_COLORS, 3)
                 val uv2xy = uniformMat3(UNIFORM_MVP)
                 val viewport = uniformFloat2(UNIFORM_VIEWPORT)
                 val scale = uniformFloat2(UNIFORM_SCALE)
@@ -128,7 +135,7 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                         )
 
                         // check
-                        `fori`(0.const, cfg.roots.size.const) {
+                        fori(0.const, cfg.roots.size.const) {
                             val diff = z - roots[it].float2("xy")
                             `if`( length(diff) lt cfg.tolerance.const ) {
                                 rootReached set true.const
@@ -141,17 +148,17 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
 
                     val a = 0.5f.const
                     val m = 3f.const * steps.toFloat1() / cfg.maxIter.const.toFloat1()
-                    val r = length(z - roots[0].float2("xy"))
-                    val g = length(z - roots[1].float2("xy"))
-                    val b = length(z - roots[2].float2("xy"))
-
-                    //colorOutput(float4Value(res.x, res.y, 0f.const, 1f.const))
                     val color = float4Var(
-                        float4Value(
-                        m * pow(a, r),
-                        m * pow(a, g),
-                        m * pow(a, b), 1f.const)
+                        float4Value(0f.const, 0f.const, 0f.const, 1f.const)
                     )
+                    fori(0.const, roots.arraySize.const) {
+                        val l = length(z - roots[it].float2("xy"))
+                        val mixValue = m * pow(a, l)
+                        val mixColor = colors[it]
+                        color.x set mix(color.x, mixColor.x, mixValue)
+                        color.y set mix(color.y, mixColor.y, mixValue)
+                        color.z set mix(color.z, mixColor.z, mixValue)
+                    }
 
                     //grid https://github.com/ogxd/grid-shader-unity/blob/master/Assets/Plugins/GridShader/Grid%20Shader.shader
                     val gridThickness = float2Var(2f.const / viewport)
@@ -165,16 +172,16 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                     val gridPos = int2Var(
                         floor(fract((uvAnalog - 0.5f.const * gridThickness) * localScale) + gridThickness * localScale).toInt2(),
                     )
+                    val gridColor = Color.GRAY
 
                     val fade = floatVar(pow(1f.const - map(localScale, 0.1f.const, 1f.const, 0.00001f.const, 0.99999f.const), fadeSpeed))
 
                     `if`( gridPos.x eq 1.const or (gridPos.y eq 1.const)
                     ) {
                         val mixValue = max((1f.const - fade), fade)
-                        val mixColor = Color.BLACK
-                        color.x set mix(color.x, mixColor.x.const, mixValue)
-                        color.y set mix(color.y, mixColor.y.const, mixValue)
-                        color.z set mix(color.z, mixColor.z.const, mixValue)
+                        color.x set mix(color.x, gridColor.x.const, mixValue)
+                        color.y set mix(color.y, gridColor.y.const, mixValue)
+                        color.z set mix(color.z, gridColor.z.const, mixValue)
 
                     }.`else` {
                         val tensScale = 10f.const * localScale
@@ -183,10 +190,9 @@ class NewtonFractalShader(val cfg: Config, model: KslProgram = NewtonFractal(cfg
                         `if`( gridPos.x eq 1.const or (gridPos.y eq 1.const) ) {
                             // NO MIX FOR vec3?
                             val mixValue = fade // (1f.const - fade)
-                            val mixColor = Color.BLACK
-                            color.x set mix(color.x, mixColor.x.const, mixValue)
-                            color.y set mix(color.y, mixColor.y.const, mixValue)
-                            color.z set mix(color.z, mixColor.z.const, mixValue)
+                            color.x set mix(color.x, gridColor.x.const, mixValue)
+                            color.y set mix(color.y, gridColor.y.const, mixValue)
+                            color.z set mix(color.z, gridColor.z.const, mixValue)
                         }
                     }
 

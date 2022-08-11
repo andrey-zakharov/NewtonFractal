@@ -119,6 +119,14 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
 
             //debug = "${x.actual} -> ${x.desired}, ${y.actual} -> ${y.desired}"
         }
+        scene.onProcessInput += {
+
+
+            debug = it.inputMgr.pointerState.pointers.filter { it.isValid && !it.isConsumed() }.joinToString("\n") {
+                val xy = unprojectToCanvas(viewportCache, Vec2d(it.x, it.y))
+                "pointer #${it.id} @${xy.toString(3)}"
+            }
+        }
 
         inputMan.registerKeyListener(InputManager.KEY_CURSOR_LEFT, "left", { it.isPressed }) {
             animateTo(translation.x - it.getPanStep(), panAnimator.second.desired)
@@ -241,8 +249,4 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
         panAnimator.first.desired = x
         panAnimator.second.desired = y
     }
-}
-
-fun Vec2d.toString(precision: Int): String {
-    return "(${this.x.toString(precision)} ${this.y.toString(precision)})"
 }
