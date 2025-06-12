@@ -71,9 +71,9 @@ class App(val ctx: KoolContext) {
         ctx.scenes += uiScene {scene ->
             +drawerMenu("hello", width= dps(400f)) {
                 val pad = pcs(35f)
-                +button("inputTransform.reset") {
+                +button("camera reset") {
                     layoutSpec.setOrigin(pad, dps(-50f), zero())
-                    layoutSpec.setSize(full(), dps(50f), full() )
+                    layoutSpec.setSize(full(), dps(40f + 32f), full() )
                     onClick += { pointer: InputManager.Pointer, rayTest: RayTest, koolContext: KoolContext ->
                         //// HACK
                         (koolContext.scenes.first().children.first { it.name == "canvasTransform" } as? CanvasTransform)?.run {
@@ -82,9 +82,10 @@ class App(val ctx: KoolContext) {
                         }
                     }
                 }
+
                 +label("cam") {
-                    layoutSpec.setOrigin(pad, dps(-100f), zero())
-                    layoutSpec.setSize(full(), dps(100f), full() )
+                    layoutSpec.setOrigin(pad, dps(-620f), zero())
+                    layoutSpec.setSize(full(), dps(5f), full() )
                     onUpdate += { ev ->
                         with(ctx.scenes[0]) {
                             text = "pos: ${camera.globalPos.toString(3)}"
@@ -95,7 +96,7 @@ class App(val ctx: KoolContext) {
                     }
                 }
                 +label("drags") {
-                    layoutSpec.setOrigin(pad, dps(-200f), zero())
+                    layoutSpec.setOrigin(pad, dps(-250f), zero())
                     layoutSpec.setSize(full(), dps(100f), full() )
                     onUpdate += { ev ->
                         with(ctx.scenes[0]) {

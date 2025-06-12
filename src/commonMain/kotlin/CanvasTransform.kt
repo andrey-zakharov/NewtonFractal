@@ -91,28 +91,7 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
             return
         }
         if ( dragPtrs.size > 1 || (debugPivot != null && dragPtrs.isNotEmpty())) {
-            val points = dragPtrs.map { pointer ->
-                val screenPos = Vec2d(pointer.x, pointer.y)
-                val delta = Vec2d(pointer.deltaX, pointer.deltaY)
-                calcDragPoints(screenPos, delta)
-            }.toMutableList()
-
-            debugPivot?.run {
-                points.add(calcDragPoints(this, Vec2d.ZERO))
-            }
-
-            // was
-            val v0 = MutableVec2d(points[0].first).also { it.minusAssign(points[1].first) }.length()
-            // comes
-            val v1 = MutableVec2d(points[0].second).also { it.minusAssign(points[1].second) }.length()
-
-            val newScale = scale * v0 / v1
-            val delta = scaleToDelta(newScale)
-            with(dragPtrs.first()) {
-                handleScaling(Vec2d(x, y), delta)
-                consume()
-            }
-            return
+            return handleTouchScale(dragPtrs, scene, ctx)
         }
 
         val anyBtn = ctx.anyBtn(dragPtrs)
@@ -153,10 +132,10 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
 
             //debug = "${x.actual} -> ${x.desired}, ${y.actual} -> ${y.desired}"
         }
-        scene.onProcessInput += {
-            debug = it.inputMgr.pointerState.pointers.filter { it.isValid && !it.isConsumed() }.joinToString("\n") {
+        scene.onProcessInput += { ctx ->
+            debug = "pointers:\n" + ctx.inputMgr.pointerState.pointers.filter { it.isValid && !it.isConsumed() }.joinToString("\n") {
                 val xy = unprojectToCanvas(viewportCache, Vec2d(it.x, it.y))
-                "pointer #${it.id} @${xy.toString(3)}"
+                " valid=${it.isValid} @${xy.toString(3)}"
             }
         }
 
@@ -236,6 +215,35 @@ class CanvasTransform(inputMan: InputManager, scene: Scene, name: String? = null
         mouseDrag.y = .0
     }
 
+    private fun handleTouchScale(dragPtrs: List<InputManager.Pointer>, scene: Scene, ctx: KoolContext) {
+        val points = dragPtrs.map { pointer ->
+            val screenPos = Vec2d(pointer.x, pointer.y)
+            val delta = Vec2d(pointer.deltaX, pointer.deltaY)
+            calcDragPoints(screenPos, delta)
+        }.toMutableList()
+
+        debugPivot?.run {
+            points.add(calcDragPoints(this, Vec2d.ZERO))
+        }
+
+        // was
+        val v0 = MutableVec2d(points[0].first).also { it.minusAssign(points[1].first) }.length()
+        // comes
+        val v1 = MutableVec2d(points[0].second).also { it.minusAssign(points[1].second) }.length()
+
+        val newScale = scale * v0 / v1
+        val delta = scaleToDelta(newScale)
+        debug = "${v0.toString(3)}/${v1.toString(3)} = ${(v0 / v1).toString(5)}"
+        debug += "scale=${scale.toString(5)} new scale=${newScale.toString(5)} delta=$delta"
+        val center = MutableVec2d(points[0].first.x, points[0].first.y).also {
+            it.plusAssign(Vec2d(points[1].first.x, points[1].first.y))
+            it.divAssign(2.0)
+        }
+
+        handleScaling(center, delta)
+        /*assert if ( dragPtrs.size > 0 ) */dragPtrs[0].consume()
+        if ( dragPtrs.size > 1 ) dragPtrs[1].consume()
+    }
 
     private fun deltaToScale(deltaScroll: Double) =
         scale + scale * deltaScroll * (scaleStep / 100.0)
